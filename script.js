@@ -1,4 +1,3 @@
-// Глобальные переменные
 let map;
 let flyZonesGeoJSON = null;
 let flyZonesLayer = null;
@@ -9,147 +8,12 @@ let tempLabel = null;
 let tempCircle = null;
 let radiusMeters = null;
 
-// Инициализация карты — без атрибуций
 function initMap() {
-  map = L.map('map', {
-    zoomControl: true,
-    attributionControl: false // 🔥 Убираем все подписи
-  }).setView([53.9, 27.5667], 10); // Минск по умолчанию
-
-  // Слои
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    // Без атрибуции
-  });
-
-  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    // Без атрибуции
-  });
-
-  // Гибрид с НАДПИСЯМИ — Esri World Street Map (улицы, номера, дороги)
-  const streetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    // Без атрибуции
-  });
-
-  const hybrid = L.layerGroup([satellite, streetMap]);
-
-  // Контрол слоёв
-  L.control.layers({
-    'OSM': osm,
-    'Спутник': satellite,
-    'Гибрид': hybrid
-  }, {}, { position: 'topright' }).addTo(map);
-
-  // ⚠️ ОБЯЗАТЕЛЬНО: Добавляем слой на карту!
-  osm.addTo(map);
-
-  // Масштаб — скрываем через CSS, но можно оставить
-  L.control.scale({ imperial: false }).addTo(map);
-
-  // Загрузка KML
-  loadKML();
-
-  // Инициализация кнопок
-  initButtons();
-}
-
-// Загрузка KML
-function loadKML() {
-  fetch('Fly_Zones_BY.kml')
-    .then(res => {
-      if (!res.ok) throw new Error(`KML не найден: ${res.status}`);
-      return res.text();
-    })
-    .then(kmlText => {
-      const kml = new DOMParser().parseFromString(kmlText, 'text/xml');
-      if (kml.documentElement.nodeName === 'parsererror') {
-        throw new Error('Ошибка парсинга KML');
-      }
-      const geojson = toGeoJSON.kml(kml);
-      flyZonesGeoJSON = geojson;
-
-      // Создаём слой
-      flyZonesLayer = omnivore.geojson(geojson)
-        .bindPopup(layer => layer.feature.properties.name || 'Зона')
-        .addTo(map);
-
-      console.log('✅ KML загружен. Объектов:', geojson.features.length);
-    })
-    .catch(err => {
-      console.error('❌ Ошибка загрузки KML:', err);
-      alert('⚠️ Не удалось загрузить зоны полёта. Проверьте файл Fly_Zones_BY.kml.');
-    });
-}
-
-// Инициализация кнопок
-function initButtons() {
-  const btnRbla = document.getElementById('btn-rbla');
-  const btnGps = document.getElementById('btn-gps');
-  const btnCalculate = document.getElementById('btn-calculate');
-
-  btnGps.addEventListener('click', () => {
-    map.locate({ setView: true, maxZoom: 16 });
-  });
-
-  btnRbla.addEventListener('click', () => {
-    if (rblaMode) return;
-    rblaMode = true;
-    btnRbla.disabled = true;
-    centerPoint = map.getCenter();
-    console.log('📍 Центр установлен:', centerPoint);
-
-    map.dragging.disable();
-    map.on('mousemove', drawTempLine);
-    map.on('click', finishRadius);
-  });
-
-  btnCalculate.addEventListener('click', () => {
-    if (!tempCircle || !flyZonesGeoJSON) {
-      alert('❌ Нет данных для расчёта.');
-      return;
-    }
-
-    const centerArr = [centerPoint.lng, centerPoint.lat];
-    const circleFeature = turf.circle(centerArr, radiusMeters / 1000, {
-      steps: 64,
-      units: 'kilometers'
-    });
-
-    const intersectingNames = [];
-    const zones = turf.featureCollection(flyZonesGeoJSON.features);
-
-    zones.features.forEach(zone => {
-      try {
-        if (turf.booleanIntersects(circleFeature, zone)) {
-          const name = zone.properties.name || 'Безымянная зона';
-          if (!intersectingNames.includes(name)) {
-            intersectingNames.push(name);
-          }
-        }
-      } catch (err) {
-        console.warn('⚠️ Ошибка при проверке пересечения:', err);
-      }
-    });
-
-    let content = `
-      <b>Центр:</b> ${centerPoint.lat.toFixed(6)}, ${centerPoint.lng.toFixed(6)}<br>
-      <b>Радиус:</b> ${radiusMeters} м<br>
-// Глобальные переменные
-let map;
-let flyZonesGeoJSON = null;
-let flyZonesLayer = null;
-let rblaMode = false;
-let centerPoint = null;
-let tempLine = null;
-let tempLabel = null;
-let tempCircle = null;
-let radiusMeters = null;
-
-// Инициализация карты
-function initMap() {
+  // Инициализация карты — ДОЛЖНА работать всегда
   map = L.map('map', {
     zoomControl: true,
     attributionControl: false
-  }).setView([53.9, 27.5667], 10); // Минск
+  }).setView([53.9, 27.5667], 10);
 
   // Слои
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {});
@@ -157,48 +21,90 @@ function initMap() {
   const streetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {});
   const hybrid = L.layerGroup([satellite, streetMap]);
 
-  // Контрол слоёв
   L.control.layers({
     'OSM': osm,
     'Спутник': satellite,
     'Гибрид': hybrid
   }, {}, { position: 'topright' }).addTo(map);
 
-  osm.addTo(map);
+  osm.addTo(map); // 🔥 Обязательно!
 
-  // Загрузка KML
+  // Загрузка KML — но не ломаем карту, если ошибка
   loadKML();
 
   // Кнопки
   initButtons();
 }
 
-// Загрузка KML
 function loadKML() {
-  fetch('Fly_Zones_BY.txt') // ⚠️ Важно: используем .txt для обхода ограничений GitHub Pages
+  fetch('Fly_Zones_BY.txt')
     .then(res => {
-      if (!res.ok) throw new Error(`KML не найден: ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.text();
     })
     .then(kmlText => {
       const kml = new DOMParser().parseFromString(kmlText, 'text/xml');
-      if (kml.documentElement.nodeName === 'parsererror') {
-        throw new Error('Ошибка парсинга KML');
+      if (kml.querySelector('parsererror')) {
+        throw new Error('Ошибка XML');
       }
       const geojson = toGeoJSON.kml(kml);
       flyZonesGeoJSON = geojson;
-      flyZonesLayer = omnivore.geojson(geojson)
-        .bindPopup(layer => layer.feature.properties.name || 'Зона')
-        .addTo(map);
+
+      // Создаём слой, но НЕ добавляем сразу — будем фильтровать по видимой области
+      const fullLayer = L.geoJSON(geojson, {
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties.name || 'Зона';
+          layer.bindPopup(`<b>${name}</b>`);
+        },
+        style: { color: '#ff0000', weight: 2, fillOpacity: 0.1 }
+      });
+
+      // Фильтрация по видимой области
+      function updateVisibleZones() {
+        if (flyZonesLayer) map.removeLayer(flyZonesLayer);
+        const bounds = map.getBounds();
+        const visibleFeatures = geojson.features.filter(feature => {
+          try {
+            const geom = feature.geometry;
+            if (geom.type === 'Point') {
+              const coord = L.latLng(geom.coordinates[1], geom.coordinates[0]);
+              return bounds.contains(coord);
+            } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+              // Упрощённая проверка: центр полигона
+              const bbox = turf.bbox(feature);
+              const center = turf.center(turf.bboxPolygon(bbox));
+              const latlng = L.latLng(center.geometry.coordinates[1], center.geometry.coordinates[0]);
+              return bounds.contains(latlng);
+            }
+          } catch (e) {
+            return false;
+          }
+          return false;
+        });
+
+        if (visibleFeatures.length > 0) {
+          flyZonesLayer = L.geoJSON({ type: 'FeatureCollection', features: visibleFeatures }, {
+            onEachFeature: (feature, layer) => {
+              const name = feature.properties.name || 'Зона';
+              layer.bindPopup(`<b>${name}</b>`);
+            },
+            style: { color: '#ff0000', weight: 2, fillOpacity: 0.1 }
+          }).addTo(map);
+        }
+      }
+
+      // Обновляем при движении/зуме
+      map.on('moveend zoomend', updateVisibleZones);
+      updateVisibleZones(); // первый раз
+
       console.log('✅ KML загружен. Объектов:', geojson.features.length);
     })
     .catch(err => {
-      console.error('❌ Ошибка загрузки KML:', err);
-      alert('⚠️ Не удалось загрузить зоны полёта. Проверьте файл Fly_Zones_BY.txt.');
+      console.error('❌ KML не загружен:', err);
+      // Карта продолжает работать!
     });
 }
 
-// Кнопки
 function initButtons() {
   const btnRbla = document.getElementById('btn-rbla');
   const btnGps = document.getElementById('btn-gps');
@@ -210,42 +116,35 @@ function initButtons() {
 
   btnRbla.addEventListener('click', () => {
     if (rblaMode) return;
+
     rblaMode = true;
     btnRbla.disabled = true;
     centerPoint = map.getCenter();
-    console.log('📍 Центр установлен:', centerPoint);
 
     map.dragging.disable();
     map.on('mousemove', drawTempLine);
-    map.on('click', finishRadius);
+    map.once('click', finishRadius); // ⚠️ once — только один раз!
   });
 
   btnCalculate.addEventListener('click', () => {
     if (!tempCircle || !flyZonesGeoJSON) {
-      alert('❌ Нет данных для расчёта.');
+      alert('Нет данных для расчёта.');
       return;
     }
 
     const centerArr = [centerPoint.lng, centerPoint.lat];
-    const circleFeature = turf.circle(centerArr, radiusMeters / 1000, {
-      steps: 64,
-      units: 'kilometers'
-    });
+    const circleFeature = turf.circle(centerArr, radiusMeters / 1000, { steps: 64 });
 
     const intersectingNames = [];
-    const zones = turf.featureCollection(flyZonesGeoJSON.features);
-
-    zones.features.forEach(zone => {
+    flyZonesGeoJSON.features.forEach(zone => {
       try {
         if (turf.booleanIntersects(circleFeature, zone)) {
-          const name = zone.properties.name || 'Безымянная зона';
+          const name = zone.properties.name || 'Зона';
           if (!intersectingNames.includes(name)) {
             intersectingNames.push(name);
           }
         }
-      } catch (err) {
-        console.warn('⚠️ Ошибка при проверке пересечения:', err);
-      }
+      } catch (e) {}
     });
 
     let content = `
@@ -263,7 +162,6 @@ function initButtons() {
   });
 }
 
-// Линейка
 function drawTempLine(e) {
   if (!rblaMode || !centerPoint) return;
 
@@ -288,22 +186,22 @@ function drawTempLine(e) {
   }).addTo(map);
 }
 
-// Завершение радиуса
 function finishRadius(e) {
   if (!rblaMode) return;
 
   const distance = map.distance(centerPoint, e.latlng);
   if (isNaN(distance)) {
-    alert('❌ Не удалось определить расстояние. Попробуйте снова.');
     resetRBLA();
     return;
   }
 
   radiusMeters = Math.ceil(distance / 50) * 50;
-  console.log('📏 Радиус установлен:', radiusMeters, 'м');
 
   if (tempLine) map.removeLayer(tempLine);
   if (tempLabel) map.removeLayer(tempLabel);
+
+  // Удаляем старый круг, если есть
+  if (tempCircle) map.removeLayer(tempCircle);
 
   tempCircle = L.circle(centerPoint, {
     radius: radiusMeters,
@@ -311,19 +209,18 @@ function finishRadius(e) {
     fillOpacity: 0.2
   }).addTo(map);
 
-  btnCalculate.style.display = 'block';
+  document.getElementById('btn-calculate').style.display = 'block';
   resetRBLA();
 }
 
 function resetRBLA() {
   rblaMode = false;
-  btnRbla.disabled = false;
+  document.getElementById('btn-rbla').disabled = false;
   map.dragging.enable();
   map.off('mousemove', drawTempLine);
-  map.off('click', finishRadius);
+  // click уже отключён благодаря map.once()
 }
 
-// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
 });
