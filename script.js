@@ -8,18 +8,17 @@ let tempLabel = null;
 let tempCircle = null;
 let radiusMeters = null;
 
-// Инициализация карты — ДОЛЖНА работать всегда
 function initMap() {
   map = L.map('map', {
     zoomControl: true,
     attributionControl: false
-  }).setView([53.9, 27.5667], 10); // Минск
+  }).setView([53.9, 27.5667], 10);
 
   // Слои
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {});
   const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {});
-  const streetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {});
-  const hybrid = L.layerGroup([satellite, streetMap]);
+  const labels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {});
+  const hybrid = L.layerGroup([satellite, labels]);
 
   L.control.layers({
     'OSM': osm,
@@ -27,18 +26,17 @@ function initMap() {
     'Гибрид': hybrid
   }, {}, { position: 'topright' }).addTo(map);
 
-  osm.addTo(map); // 🔥 Обязательно!
+  osm.addTo(map); // По умолчанию — OSM
 
-  // Загрузка KML — отдельно, без блокировки карты
+  // Загрузка KML
   loadKML();
 
   // Кнопки
   initButtons();
 }
 
-// Загрузка KML — не ломаем карту при ошибке
 function loadKML() {
-  fetch('Fly_Zones_BY.txt') // ⚠️ Убедитесь, что файл есть!
+  fetch('Fly_Zones_BY.txt')
     .then(res => {
       if (!res.ok) throw new Error(`KML не найден: ${res.status}`);
       return res.text();
@@ -50,8 +48,6 @@ function loadKML() {
       }
       const geojson = toGeoJSON.kml(kml);
       flyZonesGeoJSON = geojson;
-
-      // Создаём слой
       flyZonesLayer = L.geoJSON(geojson, {
         onEachFeature: (feature, layer) => {
           const name = feature.properties.name || 'Зона';
@@ -59,16 +55,14 @@ function loadKML() {
         },
         style: { color: '#ff0000', weight: 2, fillOpacity: 0.1 }
       }).addTo(map);
-
       console.log('✅ KML загружен. Объектов:', geojson.features.length);
     })
     .catch(err => {
       console.error('❌ Ошибка загрузки KML:', err);
-      // Карта продолжает работать!
+      alert('⚠️ Не удалось загрузить зоны полёта. Проверьте файл Fly_Zones_BY.txt.');
     });
 }
 
-// Кнопки
 function initButtons() {
   const btnRbla = document.getElementById('btn-rbla');
   const btnGps = document.getElementById('btn-gps');
@@ -87,7 +81,7 @@ function initButtons() {
 
     map.dragging.disable();
     map.on('mousemove', drawTempLine);
-    map.once('click', finishRadius); // Только один клик!
+    map.once('click', finishRadius);
   });
 
   btnCalculate.addEventListener('click', () => {
@@ -126,7 +120,6 @@ function initButtons() {
   });
 }
 
-// Линейка
 function drawTempLine(e) {
   if (!rblaMode || !centerPoint) return;
 
@@ -151,7 +144,6 @@ function drawTempLine(e) {
   }).addTo(map);
 }
 
-// Завершение радиуса
 function finishRadius(e) {
   if (!rblaMode) return;
 
@@ -166,7 +158,7 @@ function finishRadius(e) {
   if (tempLine) map.removeLayer(tempLine);
   if (tempLabel) map.removeLayer(tempLabel);
 
-  if (tempCircle) map.removeLayer(tempCircle); // Удаляем старый круг
+  if (tempCircle) map.removeLayer(tempCircle);
 
   tempCircle = L.circle(centerPoint, {
     radius: radiusMeters,
@@ -183,10 +175,8 @@ function resetRBLA() {
   document.getElementById('btn-rbla').disabled = false;
   map.dragging.enable();
   map.off('mousemove', drawTempLine);
-  // click уже отключён благодаря map.once()
 }
 
-// Инициализация после загрузки страницы
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
 });
