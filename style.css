@@ -66,3 +66,13 @@ html, body, #map {
 #control-panel button:hover {
   background: #f0f0f0;
 }
+
+/* Скрыть атрибуцию Leaflet и OpenStreetMap */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Скрыть логотип Leaflet в нижнем левом углу */
+.leaflet-control-attribution a {
+  display: none !important;
+}
