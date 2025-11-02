@@ -49,7 +49,13 @@ function getZoneStyle(name) {
       color: '#cc0000',    // Темно-красный контур
       fillColor: '#ff0000' // Красная заливка
     };
-  } else if (name.startsWith('ARD_', 'ARZ_')) {
+  } else if (name.startsWith('ARD_')) {
+    return {
+      ...baseStyle,
+      color: '#666666',    // Темно-серый контур
+      fillColor: '#c8c8c8' // Светло-серовая заливка
+    };
+  } else if (name.startsWith('ARZ_')) {
     return {
       ...baseStyle,
       color: '#666666',    // Темно-серый контур
@@ -72,7 +78,8 @@ function initMap() {
 
   // Слои
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {});
-  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {});
+  const satellite = L.tileLayer('https://s
+                                erver.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {});
   const labels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {});
   const hybrid = L.layerGroup([satellite, labels]);
 
