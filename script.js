@@ -84,20 +84,14 @@ function loadZones() {
       
       // Создаем слой с динамической стилизацией
       flyZonesLayer = L.geoJSON(geojson, {
-        onEachFeature: (feature, layer) => {
+          onEachFeature: (feature, layer) => {
           const name = feature.properties.name || 'Зона';
           const description = feature.properties.description || '';
-          layer.bindPopup(`<b>${name}</b><br>${description}`);
-        },
-        style: function(feature) {
-          const name = feature.properties.name || '';
-          return {
-            color: getZoneStroke(name),      // цвет границы
-            fillColor: getZoneColor(name),    // цвет заливки
-            weight: 2,                        // толщина границы
-            fillOpacity: 0.9                  // прозрачность заливки
-          };
-        }
+      layer.bindPopup(`<b>${name}</b><br>${description}`);
+      },
+      style: function(feature) {
+      return getZoneStyle(feature.properties.name);
+      }
       }).addTo(map);
       
       console.log('✅ GeoJSON загружен. Объектов:', geojson.features.length);
