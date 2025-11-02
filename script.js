@@ -9,58 +9,40 @@ let tempCircle = null;
 let radiusMeters = null;
 
 // Функция для определения цвета по префиксу названия
-function getZoneStyle(name) {
-  // Устанавливаем базовые стили
-  const style = {
-    weight: 2,
-    opacity: 0.9, // Прозрачность обводки
-    fillOpacity: 0.9 // Прозрачность заливки
-  };
-
-  if (!name) {
-    return {
-      ...style,
-      color: '#ff0000', // Цвет обводки
-      fillColor: '#ff0000' // Цвет заливки
-    };
-  }
-
+function getZoneColor(name) {
+  if (!name) return '#ff0000'; // красный по умолчанию
+  
   if (name.startsWith('UMU_')) {
-    return {
-      ...style,
-      color: '#800080', // Темно-фиолетовый цвет обводки
-      fillColor: 'rgba(128, 0, 128, 0.9)' // Фиолетовый с 90% прозрачностью
-    };
+    return 'rgba(128, 0, 128, 0.1)'; // фиолетовый с 90% прозрачностью
   } else if (name.startsWith('UMD_')) {
-    return {
-      ...style,
-      color: '#654321', // Темно-коричневый цвет обводки
-      fillColor: 'rgba(181, 126, 84, 0.9)' // Светло-коричневый с 90% прозрачностью
-    };
+    return 'rgba(181, 126, 84, 0.1)'; // светло-коричневый с 90% прозрачностью
   } else if (name.startsWith('UMP_')) {
-    return {
-      ...style,
-      color: '#cc8400', // Темно-оранжевый цвет обводки
-      fillColor: 'rgba(255, 165, 0, 0.9)' // Светло-оранжевый с 90% прозрачностью
-    };
+    return 'rgba(255, 165, 0, 0.1)'; // светло-оранжевый с 90% прозрачностью
   } else if (name.startsWith('UMR_')) {
-    return {
-      ...style,
-      color: '#cc0000', // Темно-красный цвет обводки
-      fillColor: 'rgba(255, 0, 0, 0.9)' // Красный с 90% прозрачностью
-    };
+    return 'rgba(255, 0, 0, 0.1)'; // красный с 90% прозрачностью
   } else if (name.startsWith('ARD_')) {
-    return {
-      ...style,
-      color: '#666666', // Темно-серый цвет обводки
-      fillColor: 'rgba(200, 200, 200, 0.9)' // Светло-серый с 90% прозрачностью
-    };
+    return 'rgba(200, 200, 200, 0.1)'; // светло-серый с 90% прозрачностью
   } else {
-    return {
-      ...style,
-      color: '#cc0000',
-      fillColor: 'rgba(255, 0, 0, 0.9)'
-    };
+    return 'rgba(255, 0, 0, 0.1)'; // красный по умолчанию
+  }
+}
+
+// Функция для получения границы (stroke) по префиксу
+function getZoneStroke(name) {
+  if (!name) return '#ff0000';
+  
+  if (name.startsWith('UMU_')) {
+    return '#800080'; // темно-фиолетовый
+  } else if (name.startsWith('UMD_')) {
+    return '#654321'; // темно-коричневый
+  } else if (name.startsWith('UMP_')) {
+    return '#cc8400'; // темно-оранжевый
+  } else if (name.startsWith('UMR_')) {
+    return '#cc0000'; // темно-красный
+  } else if (name.startsWith('ARD_')) {
+    return '#666666'; // темно-серый
+  } else {
+    return '#cc0000'; // темно-красный по умолчанию
   }
 }
 
@@ -102,14 +84,20 @@ function loadZones() {
       
       // Создаем слой с динамической стилизацией
       flyZonesLayer = L.geoJSON(geojson, {
-          onEachFeature: (feature, layer) => {
+        onEachFeature: (feature, layer) => {
           const name = feature.properties.name || 'Зона';
           const description = feature.properties.description || '';
-      layer.bindPopup(`<b>${name}</b><br>${description}`);
-      },
-      style: function(feature) {
-      return getZoneStyle(feature.properties.name);
-      }
+          layer.bindPopup(`<b>${name}</b><br>${description}`);
+        },
+        style: function(feature) {
+          const name = feature.properties.name || '';
+          return {
+            color: getZoneStroke(name),      // цвет границы
+            fillColor: getZoneColor(name),    // цвет заливки
+            weight: 2,                        // толщина границы
+            fillOpacity: 0.9                  // прозрачность заливки
+          };
+        }
       }).addTo(map);
       
       console.log('✅ GeoJSON загружен. Объектов:', geojson.features.length);
