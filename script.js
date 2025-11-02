@@ -64,25 +64,6 @@ function getZoneStyle(name) {
   }
 }
 
-// Функция для получения границы (stroke) по префиксу
-function getZoneStroke(name) {
-  if (!name) return '#ff0000';
-  
-  if (name.startsWith('UMU_')) {
-    return '#800080'; // темно-фиолетовый
-  } else if (name.startsWith('UMD_')) {
-    return '#654321'; // темно-коричневый
-  } else if (name.startsWith('UMP_')) {
-    return '#cc8400'; // темно-оранжевый
-  } else if (name.startsWith('UMR_')) {
-    return '#cc0000'; // темно-красный
-  } else if (name.startsWith('ARD_')) {
-    return '#666666'; // темно-серый
-  } else {
-    return '#cc0000'; // темно-красный по умолчанию
-  }
-}
-
 function initMap() {
   map = L.map('map', {
     zoomControl: true,
