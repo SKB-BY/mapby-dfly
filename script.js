@@ -13,7 +13,7 @@ let elevationCache = {};
 let lastElevationRequest = 0;
 const ELEVATION_REQUEST_DELAY = 1000;
 let pendingElevationRequest = null;
-let isTrackingCenter = true; // Флаг для отслеживания центра карты
+let isTrackingCenter = true;
 
 function getZoneStyle(name) {
   const baseStyle = {
@@ -152,7 +152,6 @@ function updateCoordinatesDisplay(coords, elevation = 0) {
   `;
 }
 
-// Обновление координат центра карты
 function updateCenterCoordinates() {
   if (!coordinatesDisplay || !map) return;
   
@@ -162,7 +161,6 @@ function updateCenterCoordinates() {
   });
 }
 
-// Обновление координат при движении курсора
 let cursorUpdateTimeout = null;
 function updateCursorCoordinates(e) {
   if (cursorUpdateTimeout) {
@@ -177,7 +175,6 @@ function updateCursorCoordinates(e) {
   }, 100);
 }
 
-// Возврат к отслеживанию центра при уходе курсора
 function resetToCenterTracking() {
   isTrackingCenter = true;
   updateCenterCoordinates();
@@ -214,7 +211,6 @@ function initMap() {
 
   initCoordinatesDisplay();
 
-  // События для отслеживания центра карты
   map.on('moveend', () => {
     if (isTrackingCenter) {
       updateCenterCoordinates();
@@ -227,7 +223,6 @@ function initMap() {
     }
   });
 
-  // События для отслеживания курсора
   map.on('mousemove', updateCursorCoordinates);
   map.on('mouseout', resetToCenterTracking);
 
@@ -236,7 +231,6 @@ function initMap() {
     map.on('touchend', resetToCenterTracking);
   }
 
-  // Первоначальное обновление
   updateCenterCoordinates();
 
   loadZones();
@@ -295,6 +289,82 @@ function setOperatorMarker(latlng) {
   });
 }
 
+// Функция для проверки пересечения круга с полигоном
+function circleIntersectsPolygon(circle, polygon) {
+  const circleCenter = circle.getLatLng();
+  const circleRadius = circle.getRadius();
+  
+  // Проверяем, находится ли центр круга внутри полигона
+  if (polygon.getBounds().contains(circleCenter)) {
+    return true;
+  }
+  
+  // Проверяем, пересекает ли круг границы полигона
+  const circleBounds = circle.getBounds();
+  const polygonBounds = polygon.getBounds();
+  
+  // Если bounding boxes не пересекаются, то и фигуры не пересекаются
+  if (!circleBounds.intersects(polygonBounds)) {
+    return false;
+  }
+  
+  // Более точная проверка: проверяем расстояние от центра круга до полигона
+  const polygonLatLngs = polygon.getLatLngs()[0]; // Берем первый ring полигона
+  
+  // Проверяем, находится ли любая точка полигона внутри круга
+  for (let i = 0; i < polygonLatLngs.length; i++) {
+    const distance = map.distance(circleCenter, polygonLatLngs[i]);
+    if (distance <= circleRadius) {
+      return true;
+    }
+  }
+  
+  // Проверяем, находится ли центр круга близко к границе полигона
+  // Это упрощенная проверка, но для наших целей подойдет
+  let minDistance = Infinity;
+  for (let i = 0; i < polygonLatLngs.length; i++) {
+    const nextIndex = (i + 1) % polygonLatLngs.length;
+    const distance = distanceToSegment(circleCenter, polygonLatLngs[i], polygonLatLngs[nextIndex]);
+    minDistance = Math.min(minDistance, distance);
+  }
+  
+  return minDistance <= circleRadius;
+}
+
+// Вспомогательная функция для расчета расстояния от точки до отрезка
+function distanceToSegment(point, segmentStart, segmentEnd) {
+  const A = point.lat - segmentStart.lat;
+  const B = point.lng - segmentStart.lng;
+  const C = segmentEnd.lat - segmentStart.lat;
+  const D = segmentEnd.lng - segmentStart.lng;
+
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  let param = -1;
+  
+  if (lenSq !== 0) {
+    param = dot / lenSq;
+  }
+
+  let xx, yy;
+
+  if (param < 0) {
+    xx = segmentStart.lat;
+    yy = segmentStart.lng;
+  } else if (param > 1) {
+    xx = segmentEnd.lat;
+    yy = segmentEnd.lng;
+  } else {
+    xx = segmentStart.lat + param * C;
+    yy = segmentStart.lng + param * D;
+  }
+
+  const dx = point.lat - xx;
+  const dy = point.lng - yy;
+  
+  return Math.sqrt(dx * dx + dy * dy) * 111320; // Примерное преобразование в метры
+}
+
 function initButtons() {
   const btnRbla = document.getElementById('btn-rbla');
   const btnGps = document.getElementById('btn-gps');
@@ -320,7 +390,6 @@ function initButtons() {
           .bindPopup("Ваше местоположение")
           .openPopup();
           
-        // Обновляем координаты после перемещения
         setTimeout(() => {
           isTrackingCenter = true;
           updateCenterCoordinates();
@@ -360,25 +429,26 @@ function initButtons() {
 
   if (btnCalculate) {
     btnCalculate.addEventListener('click', () => {
-      if (!tempCircle || !flyZonesGeoJSON) {
+      if (!tempCircle || !flyZonesLayer) {
         alert('Нет данных для расчёта.');
         return;
       }
 
-      const centerArr = [centerPoint.lng, centerPoint.lat];
-      const circleFeature = turf.circle(centerArr, radiusMeters / 1000, { steps: 64 });
-
       const intersectingNames = [];
-      flyZonesGeoJSON.features.forEach(zone => {
-        try {
-          if (turf.booleanIntersects(circleFeature, zone)) {
-            const name = zone.properties.Name || zone.properties.name || 'Зона';
-            if (!intersectingNames.includes(name)) {
-              intersectingNames.push(name);
+      
+      // Проверяем пересечение с каждой зоной
+      flyZonesLayer.eachLayer(layer => {
+        if (layer instanceof L.Polygon) {
+          try {
+            if (circleIntersectsPolygon(tempCircle, layer)) {
+              const name = layer.feature.properties.Name || layer.feature.properties.name || 'Зона';
+              if (!intersectingNames.includes(name)) {
+                intersectingNames.push(name);
+              }
             }
+          } catch (e) {
+            console.warn('Ошибка при проверке пересечения:', e);
           }
-        } catch (e) {
-          console.warn('Ошибка при проверке пересечения:', e);
         }
       });
 
