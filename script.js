@@ -98,14 +98,11 @@ function initCoordinatesDisplay() {
   coordinatesDisplay.update = async function(coords) {
     const lat = coords[0].toFixed(6);
     const lng = coords[1].toFixed(6);
-    const elevation = await getElevation(lat, lng);
+    const elevation = await getElevation(coords[0], coords[1]);
     
     this._div.innerHTML = `
       <div class="coordinates-content">
-        <strong>Координаты:</strong><br>
-        Ш: ${lat}°<br>
-        Д: ${lng}°<br>
-        Высота: ${Math.round(elevation)} м
+        <strong>Координаты:</strong> ${lat}, ${lng} / <strong>Высота:</strong> ${Math.round(elevation)} м.
       </div>
     `;
   };
@@ -206,12 +203,15 @@ function setOperatorMarker(latlng) {
     })
   }).addTo(map);
   
-  // Добавляем popup с информацией
-  operatorMarker.bindPopup(`
-    <b>Позиция оператора</b><br>
-    Ш: ${latlng.lat.toFixed(6)}°<br>
-    Д: ${latlng.lng.toFixed(6)}°
-  `);
+  // Получаем высоту для маркера оператора
+  getElevation(latlng.lat, latlng.lng).then(elevation => {
+    // Добавляем popup с информацией
+    operatorMarker.bindPopup(`
+      <b>Позиция оператора</b><br>
+      Координаты: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}<br>
+      Высота: ${Math.round(elevation)} м.
+    `);
+  });
   
   console.log('Маркер оператора установлен:', latlng);
 }
@@ -262,8 +262,11 @@ function initButtons() {
       const center = map.getCenter();
       setOperatorMarker(center);
       
-      // Показываем сообщение
-      alert(`Маркер оператора установлен!\nШ: ${center.lat.toFixed(6)}°\nД: ${center.lng.toFixed(6)}°`);
+      // Получаем высоту для сообщения
+      getElevation(center.lat, center.lng).then(elevation => {
+        // Показываем сообщение
+        alert(`Маркер оператора установлен!\nКоординаты: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}\nВысота: ${Math.round(elevation)} м.`);
+      });
     });
   }
 
@@ -306,17 +309,22 @@ function initButtons() {
         }
       });
 
-      let content = `
-        <b>Центр:</b> ${centerPoint.lat.toFixed(6)}, ${centerPoint.lng.toFixed(6)}<br>
-        <b>Радиус:</b> ${radiusMeters} м<br>
-      `;
-      if (intersectingNames.length > 0) {
-        content += `<b>Пересекает зоны:</b><br>• ${intersectingNames.join('<br>• ')}`;
-      } else {
-        content += `<b>Пересечений нет</b>`;
-      }
+      // Получаем высоту для центра круга
+      getElevation(centerPoint.lat, centerPoint.lng).then(elevation => {
+        let content = `
+          <b>Центр:</b> ${centerPoint.lat.toFixed(6)}, ${centerPoint.lng.toFixed(6)}<br>
+          <b>Высота:</b> ${Math.round(elevation)} м.<br>
+          <b>Радиус:</b> ${radiusMeters} м<br>
+        `;
+        if (intersectingNames.length > 0) {
+          content += `<b>Пересекает зоны:</b><br>• ${intersectingNames.join('<br>• ')}`;
+        } else {
+          content += `<b>Пересечений нет</b>`;
+        }
 
-      tempCircle.bindPopup(content).openPopup();
+        tempCircle.bindPopup(content).openPopup();
+      });
+
       btnCalculate.style.display = 'none';
     });
   }
