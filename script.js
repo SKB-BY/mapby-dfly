@@ -8,6 +8,8 @@ let tempLabel = null;
 let tempCircle = null;
 let radiusMeters = null;
 let coordinatesDisplay = null;
+let operatorMarker = null; // Маркер оператора
+let elevationData = null; // Данные о высотах
 
 function getZoneStyle(name) {
   // Базовые стили для всех зон
@@ -71,24 +73,39 @@ function getZoneStyle(name) {
   }
 }
 
+// Функция для получения высоты по координатам
+async function getElevation(lat, lng) {
+  try {
+    const response = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
+    const data = await response.json();
+    return data.results[0]?.elevation || 0;
+  } catch (error) {
+    console.error('Ошибка получения высоты:', error);
+    return 0;
+  }
+}
+
 function initCoordinatesDisplay() {
   // Создаем элемент для отображения координат
   coordinatesDisplay = L.control({ position: 'bottomleft' });
 
   coordinatesDisplay.onAdd = function(map) {
     this._div = L.DomUtil.create('div', 'coordinates-display');
-    this.update([53.9, 27.5667]); // Начальные координаты
+    this.update([53.9, 27.5667], 0); // Начальные координаты и высота
     return this._div;
   };
 
-  coordinatesDisplay.update = function(coords) {
+  coordinatesDisplay.update = async function(coords) {
     const lat = coords[0].toFixed(6);
     const lng = coords[1].toFixed(6);
+    const elevation = await getElevation(lat, lng);
+    
     this._div.innerHTML = `
       <div class="coordinates-content">
         <strong>Координаты:</strong><br>
         Ш: ${lat}°<br>
-        Д: ${lng}°
+        Д: ${lng}°<br>
+        Высота: ${Math.round(elevation)} м
       </div>
     `;
   };
@@ -172,14 +189,81 @@ function loadZones() {
     });
 }
 
+// Функция для установки маркера оператора
+function setOperatorMarker(latlng) {
+  // Удаляем предыдущий маркер, если есть
+  if (operatorMarker) {
+    map.removeLayer(operatorMarker);
+  }
+  
+  // Создаем новый маркер с иконкой "О"
+  operatorMarker = L.marker(latlng, {
+    icon: L.divIcon({
+      className: 'operator-marker',
+      html: '<div class="operator-marker-inner">О</div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    })
+  }).addTo(map);
+  
+  // Добавляем popup с информацией
+  operatorMarker.bindPopup(`
+    <b>Позиция оператора</b><br>
+    Ш: ${latlng.lat.toFixed(6)}°<br>
+    Д: ${latlng.lng.toFixed(6)}°
+  `);
+  
+  console.log('Маркер оператора установлен:', latlng);
+}
+
 function initButtons() {
   const btnRbla = document.getElementById('btn-rbla');
   const btnGps = document.getElementById('btn-gps');
   const btnCalculate = document.getElementById('btn-calculate');
+  const btnOperator = document.getElementById('btn-operator');
 
   if (btnGps) {
     btnGps.addEventListener('click', () => {
-      map.locate({ setView: true, maxZoom: 21 });
+      map.locate({ 
+        setView: true, 
+        maxZoom: 21,
+        watch: false,
+        enableHighAccuracy: true 
+      });
+      
+      // Обработка успешного определения местоположения
+      map.on('locationfound', function(e) {
+        // Показываем кнопку "Маркер-О"
+        if (btnOperator) {
+          btnOperator.style.display = 'block';
+        }
+        
+        // Добавляем маркер текущего местоположения
+        L.marker(e.latlng).addTo(map)
+          .bindPopup("Ваше местоположение")
+          .openPopup();
+          
+        // Обновляем координаты
+        if (coordinatesDisplay) {
+          coordinatesDisplay.update([e.latlng.lat, e.latlng.lng]);
+        }
+      });
+      
+      // Обработка ошибок определения местоположения
+      map.on('locationerror', function(e) {
+        alert('Не удалось определить местоположение: ' + e.message);
+      });
+    });
+  }
+
+  // Кнопка установки маркера оператора
+  if (btnOperator) {
+    btnOperator.addEventListener('click', () => {
+      const center = map.getCenter();
+      setOperatorMarker(center);
+      
+      // Показываем сообщение
+      alert(`Маркер оператора установлен!\nШ: ${center.lat.toFixed(6)}°\nД: ${center.lng.toFixed(6)}°`);
     });
   }
 
