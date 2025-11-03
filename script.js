@@ -49,6 +49,19 @@ function getZoneStyle(name) {
       ...baseStyle,
       color: '#cc0000',    // Темно-красный контур
       fillColor: '#ff0000' // Красная заливка
+    };
+  } else if (name.startsWith('ARD_')) {
+    return {
+      ...baseStyle,
+      color: '#666666',    // Темно-серый контур
+      fillColor: '#c8c8c8' // Светло-серовая заливка
+    };
+  } else if (name.startsWith('ARZ_')) {
+    return {
+      ...baseStyle,
+      color: '#666666',    // Темно-серый контур
+      fillColor: '#c8c8c8' // Светло-серовая заливка
+    };
   } else {
     return {
       ...baseStyle,
@@ -147,7 +160,7 @@ function loadZones() {
     })
     .catch(err => {
       console.error('❌ Ошибка загрузки GeoJSON:', err);
-      alert('⚠️ Не удалось загрузить зоны. Проверьте файл Fly_Zones_BY.geojson.');
+      alert('⚠️ Не удалось загрузить зоны полёта. Проверьте файл Fly_Zones_BY.geojson.');
     });
 }
 
