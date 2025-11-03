@@ -9,52 +9,51 @@ let tempCircle = null;
 let radiusMeters = null;
 let coordinatesDisplay = null;
 
-function getZoneStyle(zoneName) {
+function getZoneStyle(name) {
   // Базовые стили для всех зон
   const baseStyle = {
     weight: 2,
     opacity: 0.9,     // Прозрачность контура
-    fillOpacity: 0.3  // Прозрачность заливки
+    fillOpacity: 0.3  // Прозрачность заливки (увеличена для лучшей видимости)
   };
 
-  if (!zoneName) {
+  if (!name) {
     return {
       ...baseStyle,
-      color: '#ff0000',
-      fillColor: '#ff0000'
+      color: '#ff0000',    // Красный контур
+      fillColor: '#ff0000' // Красная заливка
     };
   }
 
   // Определяем цвета в зависимости от типа зоны
-  if (zoneName.startsWith('UMU_')) {
+  if (name.startsWith('UMU_')) {
     return {
       ...baseStyle,
-      color: '#800080',
-      fillColor: '#800080'
+      color: '#800080',    // Темно-фиолетовый контур
+      fillColor: '#800080' // Фиолетовая заливка
     };
-  } else if (zoneName.startsWith('UMD_')) {
+  } else if (name.startsWith('UMD_')) {
     return {
       ...baseStyle,
-      color: '#654321',
-      fillColor: '#b57e54'
+      color: '#654321',    // Темно-коричневый контур
+      fillColor: '#b57e54' // Светло-коричневая заливка
     };
-  } else if (zoneName.startsWith('UMP_')) {
+  } else if (name.startsWith('UMP_')) {
     return {
       ...baseStyle,
-      color: '#cc8400',
-      fillColor: '#ffa500'
+      color: '#cc8400',    // Темно-оранжевый контур
+      fillColor: '#ffa500' // Оранжевая заливка
     };
-  } else if (zoneName.startsWith('UMR_')) {
+  } else if (name.startsWith('UMR_')) {
     return {
       ...baseStyle,
-      color: '#cc0000',
-      fillColor: '#ff0000'
-    };
+      color: '#cc0000',    // Темно-красный контур
+      fillColor: '#ff0000' // Красная заливка
   } else {
     return {
       ...baseStyle,
-      color: '#cc0000',
-      fillColor: '#ff0000'
+      color: '#cc0000',    // Контур по умолчанию
+      fillColor: '#ff0000' // Заливка по умолчанию
     };
   }
 }
@@ -116,14 +115,6 @@ function initMap() {
   // Событие перемещения курсора по карте
   map.on('mousemove', updateCoordinates);
 
-  // Событие перемещения карты (для обновления координат при перетаскивании)
-  map.on('move', function(e) {
-    const center = map.getCenter();
-    if (coordinatesDisplay) {
-      coordinatesDisplay.update([center.lat, center.lng]);
-    }
-  });
-
   // Загрузка GeoJSON из файла
   loadZones();
 
@@ -143,23 +134,20 @@ function loadZones() {
       // Создаем слой с динамической стилизацией
       flyZonesLayer = L.geoJSON(geojson, {
         onEachFeature: (feature, layer) => {
-          // ИСПРАВЛЕНИЕ: используем "Name" вместо "name"
-          const name = feature.properties.Name || 'Зона';
+          const name = feature.properties.name || 'Зона';
           const description = feature.properties.description || '';
           layer.bindPopup(`<b>${name}</b><br>${description}`);
         },
         style: function(feature) {
-          // ИСПРАВЛЕНИЕ: используем "Name" вместо "name"
-          return getZoneStyle(feature.properties.Name);
+          return getZoneStyle(feature.properties.name);
         }
       }).addTo(map);
       
       console.log('✅ GeoJSON загружен. Объектов:', geojson.features.length);
-      console.log('✅ Пример свойств первого объекта:', geojson.features[0]?.properties);
     })
     .catch(err => {
       console.error('❌ Ошибка загрузки GeoJSON:', err);
-      alert('⚠️ Не удалось загрузить запретные зоны и зоны ограничений. Проверьте файл Fly_Zones_BY.geojson.');
+      alert('⚠️ Не удалось загрузить зоны. Проверьте файл Fly_Zones_BY.geojson.');
     });
 }
 
@@ -202,8 +190,7 @@ function initButtons() {
       flyZonesGeoJSON.features.forEach(zone => {
         try {
           if (turf.booleanIntersects(circleFeature, zone)) {
-            // ИСПРАВЛЕНИЕ: используем "Name" вместо "name"
-            const name = zone.properties.Name || 'Зона';
+            const name = zone.properties.name || 'Зона';
             if (!intersectingNames.includes(name)) {
               intersectingNames.push(name);
             }
@@ -272,9 +259,7 @@ function finishRadius(e) {
   tempCircle = L.circle(centerPoint, {
     radius: radiusMeters,
     color: 'red',
-    fillColor: 'red',
-    fillOpacity: 0.2,
-    opacity: 0.7
+    fillOpacity: 0.2
   }).addTo(map);
 
   const btnCalculate = document.getElementById('btn-calculate');
@@ -295,6 +280,6 @@ function resetRBLA() {
   map.off('mousemove', drawTempLine);
 }
 
-document.addEventListener('DOMContentLoaded', () {
+document.addEventListener('DOMContentLoaded', () => {
   initMap();
 });
