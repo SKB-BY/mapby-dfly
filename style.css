@@ -73,7 +73,31 @@ html, body, #map {
   display: none !important;
 }
 
-/* Стиль для метки расстояния */
+/* Стили для отображения координат */
+.coordinates-display {
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: 'Arial', sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+  backdrop-filter: blur(2px);
+}
+
+.coordinates-content {
+  text-align: left;
+}
+
+.coordinates-content strong {
+  color: #000;
+  font-size: 11px;
+}
+
+/* Стили для меток расстояния */
 .distance-label div {
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid #ffff00;
