@@ -7,6 +7,7 @@ let tempLine = null;
 let tempLabel = null;
 let tempCircle = null;
 let radiusMeters = null;
+let coordinatesDisplay = null;
 
 function getZoneStyle(zoneName) {
   // Базовые стили для всех зон
@@ -58,6 +59,37 @@ function getZoneStyle(zoneName) {
   }
 }
 
+function initCoordinatesDisplay() {
+  // Создаем элемент для отображения координат
+  coordinatesDisplay = L.control({ position: 'bottomleft' });
+
+  coordinatesDisplay.onAdd = function(map) {
+    this._div = L.DomUtil.create('div', 'coordinates-display');
+    this.update([53.9, 27.5667]); // Начальные координаты
+    return this._div;
+  };
+
+  coordinatesDisplay.update = function(coords) {
+    const lat = coords[0].toFixed(6);
+    const lng = coords[1].toFixed(6);
+    this._div.innerHTML = `
+      <div class="coordinates-content">
+        <strong>Координаты:</strong><br>
+        Ш: ${lat}°<br>
+        Д: ${lng}°
+      </div>
+    `;
+  };
+
+  coordinatesDisplay.addTo(map);
+}
+
+function updateCoordinates(e) {
+  if (coordinatesDisplay) {
+    coordinatesDisplay.update([e.latlng.lat, e.latlng.lng]);
+  }
+}
+
 function initMap() {
   map = L.map('map', {
     zoomControl: true,
@@ -77,6 +109,20 @@ function initMap() {
   }, {}, { position: 'topright' }).addTo(map);
 
   osm.addTo(map);
+
+  // Инициализация отображения координат
+  initCoordinatesDisplay();
+
+  // Событие перемещения курсора по карте
+  map.on('mousemove', updateCoordinates);
+
+  // Событие перемещения карты (для обновления координат при перетаскивании)
+  map.on('move', function(e) {
+    const center = map.getCenter();
+    if (coordinatesDisplay) {
+      coordinatesDisplay.update([center.lat, center.lng]);
+    }
+  });
 
   // Загрузка GeoJSON из файла
   loadZones();
@@ -113,7 +159,7 @@ function loadZones() {
     })
     .catch(err => {
       console.error('❌ Ошибка загрузки GeoJSON:', err);
-      alert('⚠️ Не удалось загрузить зоны ограничений. Проверьте файл Fly_Zones_BY.geojson.');
+      alert('⚠️ Не удалось загрузить запретные зоны и зоны ограничений. Проверьте файл Fly_Zones_BY.geojson.');
     });
 }
 
@@ -249,6 +295,6 @@ function resetRBLA() {
   map.off('mousemove', drawTempLine);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () {
   initMap();
 });
