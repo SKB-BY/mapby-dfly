@@ -152,7 +152,17 @@ function updateCoordinatesDisplay(coords, elevation = 0) {
   `;
 }
 
-async function updateCoordinates(e) {
+// Функция для обновления координат центра карты
+async function updateCenterCoordinates() {
+  if (!coordinatesDisplay || !map) return;
+  
+  const center = map.getCenter();
+  const elevation = await getElevation(center.lat, center.lng);
+  updateCoordinatesDisplay([center.lat, center.lng], elevation);
+}
+
+// Функция для обновления координат при движении курсора
+async function updateCursorCoordinates(e) {
   if (updateTimeout) {
     clearTimeout(updateTimeout);
   }
@@ -197,11 +207,19 @@ function initMap() {
   // Инициализация кастомного отображения координат
   initCoordinatesDisplay();
 
-  map.on('mousemove', updateCoordinates);
+  // Обновляем координаты при перемещении карты
+  map.on('moveend', updateCenterCoordinates);
+  map.on('zoomend', updateCenterCoordinates);
+  
+  // Также обновляем при движении курсора
+  map.on('mousemove', updateCursorCoordinates);
 
   if (isMobile) {
-    map.on('touchmove', updateCoordinates);
+    map.on('touchmove', updateCursorCoordinates);
   }
+
+  // Первоначальное обновление координат центра
+  updateCenterCoordinates();
 
   loadZones();
   initButtons();
@@ -284,11 +302,10 @@ function initButtons() {
           .bindPopup("Ваше местоположение")
           .openPopup();
           
-        if (coordinatesDisplay) {
-          getElevation(e.latlng.lat, e.latlng.lng).then(elevation => {
-            updateCoordinatesDisplay([e.latlng.lat, e.latlng.lng], elevation);
-          });
-        }
+        // Обновляем координаты после перемещения к местоположению
+        setTimeout(() => {
+          updateCenterCoordinates();
+        }, 500);
       });
       
       map.on('locationerror', function(e) {
