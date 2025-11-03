@@ -128,38 +128,39 @@ function getApproximateElevation(lat, lng) {
 }
 
 function initCoordinatesDisplay() {
-  coordinatesDisplay = L.control({ position: 'bottomleft' });
-
-  coordinatesDisplay.onAdd = function(map) {
-    this._div = L.DomUtil.create('div', 'coordinates-display');
-    this.update([53.9, 27.5667]);
-    return this._div;
-  };
-
-  coordinatesDisplay.update = async function(coords) {
-    const lat = coords[0].toFixed(6);
-    const lng = coords[1].toFixed(6);
-    const elevation = await getElevation(coords[0], coords[1]);
-    
-    this._div.innerHTML = `
-      <div class="coordinates-content">
-        <strong>Координаты:</strong> ${lat}, ${lng} / <strong>Высота:</strong> ${Math.round(elevation)} м.
-      </div>
-    `;
-  };
-
-  coordinatesDisplay.addTo(map);
+  // Создаем кастомный элемент вместо Leaflet Control
+  coordinatesDisplay = document.createElement('div');
+  coordinatesDisplay.className = 'coordinates-display';
+  coordinatesDisplay.innerHTML = `
+    <div class="coordinates-content">
+      <strong>Координаты:</strong> 53.900000, 27.566700 / <strong>Высота:</strong> 160 м.
+    </div>
+  `;
+  document.body.appendChild(coordinatesDisplay);
 }
 
-let updateTimeout = null;
-function updateCoordinates(e) {
+function updateCoordinatesDisplay(coords, elevation = 0) {
+  if (!coordinatesDisplay) return;
+  
+  const lat = coords[0].toFixed(6);
+  const lng = coords[1].toFixed(6);
+  
+  coordinatesDisplay.innerHTML = `
+    <div class="coordinates-content">
+      <strong>Координаты:</strong> ${lat}, ${lng} / <strong>Высота:</strong> ${Math.round(elevation)} м.
+    </div>
+  `;
+}
+
+async function updateCoordinates(e) {
   if (updateTimeout) {
     clearTimeout(updateTimeout);
   }
   
-  updateTimeout = setTimeout(() => {
+  updateTimeout = setTimeout(async () => {
     if (coordinatesDisplay) {
-      coordinatesDisplay.update([e.latlng.lat, e.latlng.lng]);
+      const elevation = await getElevation(e.latlng.lat, e.latlng.lng);
+      updateCoordinatesDisplay([e.latlng.lat, e.latlng.lng], elevation);
     }
   }, 200);
 }
@@ -193,6 +194,7 @@ function initMap() {
 
   osm.addTo(map);
 
+  // Инициализация кастомного отображения координат
   initCoordinatesDisplay();
 
   map.on('mousemove', updateCoordinates);
@@ -283,7 +285,9 @@ function initButtons() {
           .openPopup();
           
         if (coordinatesDisplay) {
-          coordinatesDisplay.update([e.latlng.lat, e.latlng.lng]);
+          getElevation(e.latlng.lat, e.latlng.lng).then(elevation => {
+            updateCoordinatesDisplay([e.latlng.lat, e.latlng.lng], elevation);
+          });
         }
       });
       
