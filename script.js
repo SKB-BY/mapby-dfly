@@ -9,9 +9,10 @@ let tempCircle = null;
 let radiusMeters = null;
 let coordinatesDisplay = null;
 let operatorMarker = null;
-let elevationCache = {}; // Кэш высот
-let lastElevationRequest = 0; // Время последнего запроса
-const ELEVATION_REQUEST_DELAY = 500; // Задержка между запросами в мс
+let elevationCache = {};
+let lastElevationRequest = 0;
+const ELEVATION_REQUEST_DELAY = 100; // Уменьшили задержку, т.к. Google API надежнее
+let elevationService = null;
 
 function getZoneStyle(name) {
   const baseStyle = {
@@ -73,76 +74,72 @@ function getZoneStyle(name) {
   }
 }
 
-// Улучшенная функция получения высоты с кэшированием и ограничением запросов
-async function getElevation(lat, lng) {
-  // Округляем координаты для кэширования (до 4 знаков после запятой)
-  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-  
-  // Проверяем кэш
-  if (elevationCache[cacheKey] !== undefined) {
-    return elevationCache[cacheKey];
-  }
-  
-  // Ограничиваем частоту запросов
-  const now = Date.now();
-  if (now - lastElevationRequest < ELEVATION_REQUEST_DELAY) {
-    return 0; // Возвращаем 0 если запросы слишком частые
-  }
-  
-  lastElevationRequest = now;
-  
-  try {
-    // Пробуем разные API высот
-    const response = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.results && data.results[0]) {
-      const elevation = data.results[0].elevation;
-      // Сохраняем в кэш
-      elevationCache[cacheKey] = elevation;
-      return elevation;
-    } else {
-      throw new Error('No elevation data in response');
-    }
-  } catch (error) {
-    console.warn('Ошибка получения высоты, используем кэш или 0:', error);
-    
-    // Пробуем альтернативный API если основной не работает
-    try {
-      const altResponse = await fetch(`https://elevation-api.io/api/elevation?points=${lat},${lng}`);
-      if (altResponse.ok) {
-        const altData = await altResponse.json();
-        if (altData.elevations && altData.elevations[0]) {
-          const elevation = altData.elevations[0].elevation;
-          elevationCache[cacheKey] = elevation;
-          return elevation;
-        }
-      }
-    } catch (altError) {
-      console.warn('Альтернативный API также не сработал');
-    }
-    
-    // Если все API не работают, используем приблизительные высоты для Беларуси
-    const approximateElevation = getApproximateElevation(lat, lng);
-    elevationCache[cacheKey] = approximateElevation;
-    return approximateElevation;
+// Инициализация Google Elevation Service
+function initElevationService() {
+  if (typeof google !== 'undefined' && google.maps) {
+    elevationService = new google.maps.ElevationService();
+    console.log('✅ Google Elevation Service инициализирован');
+  } else {
+    console.warn('❌ Google Maps API не загружен');
   }
 }
 
-// Приблизительная высота для Беларуси (основано на средних высотах)
+// Функция получения высоты через Google Elevation API
+function getElevation(lat, lng) {
+  return new Promise((resolve) => {
+    // Округляем координаты для кэширования
+    const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    
+    // Проверяем кэш
+    if (elevationCache[cacheKey] !== undefined) {
+      resolve(elevationCache[cacheKey]);
+      return;
+    }
+    
+    // Ограничиваем частоту запросов
+    const now = Date.now();
+    if (now - lastElevationRequest < ELEVATION_REQUEST_DELAY) {
+      resolve(0);
+      return;
+    }
+    
+    lastElevationRequest = now;
+
+    // Если Google Elevation Service доступен
+    if (elevationService) {
+      const locations = [{
+        lat: lat,
+        lng: lng
+      }];
+
+      elevationService.getElevationForLocations({
+        'locations': locations
+      }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const elevation = results[0].elevation;
+          elevationCache[cacheKey] = elevation;
+          resolve(elevation);
+        } else {
+          console.warn('Google Elevation API error:', status);
+          // Fallback на приблизительную высоту
+          const approximateElevation = getApproximateElevation(lat, lng);
+          elevationCache[cacheKey] = approximateElevation;
+          resolve(approximateElevation);
+        }
+      });
+    } else {
+      // Fallback если Google API не загружен
+      const approximateElevation = getApproximateElevation(lat, lng);
+      elevationCache[cacheKey] = approximateElevation;
+      resolve(approximateElevation);
+    }
+  });
+}
+
+// Приблизительная высота для Беларуси (fallback)
 function getApproximateElevation(lat, lng) {
-  // Беларусь в основном равнинная страна
-  // Средняя высота: 160 м, максимальная: 345 м (г. Дзержинская)
   const baseHeight = 160;
-  
-  // Небольшие вариации в зависимости от координат
   const variation = Math.sin(lat * 10) * 50 + Math.cos(lng * 10) * 30;
-  
   return Math.max(100, baseHeight + variation);
 }
 
@@ -170,7 +167,7 @@ function initCoordinatesDisplay() {
   coordinatesDisplay.addTo(map);
 }
 
-// Оптимизированное обновление координат с троттлингом
+// Оптимизированное обновление координат
 let updateTimeout = null;
 function updateCoordinates(e) {
   if (updateTimeout) {
@@ -181,23 +178,22 @@ function updateCoordinates(e) {
     if (coordinatesDisplay) {
       coordinatesDisplay.update([e.latlng.lat, e.latlng.lng]);
     }
-  }, 100); // Задержка 100 мс
+  }, 150);
 }
 
 function initMap() {
-  // Определяем мобильное устройство
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
   map = L.map('map', {
     zoomControl: true,
     attributionControl: false,
-    tap: isMobile, // Оптимизация для мобильных
+    tap: isMobile,
     tapTolerance: isMobile ? 15 : 10
   }).setView([53.9, 27.5667], 10);
 
   // Слои
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    detectRetina: isMobile // Оптимизация для Retina дисплеев
+    detectRetina: isMobile
   });
   const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     detectRetina: isMobile
@@ -215,18 +211,21 @@ function initMap() {
 
   osm.addTo(map);
 
+  // Инициализация сервиса высот
+  initElevationService();
+
   // Инициализация отображения координат
   initCoordinatesDisplay();
 
   // Событие перемещения курсора по карте
   map.on('mousemove', updateCoordinates);
 
-  // Для мобильных устройств - touch события
+  // Для мобильных устройств
   if (isMobile) {
     map.on('touchmove', updateCoordinates);
   }
 
-  // Загрузка GeoJSON из файла
+  // Загрузка GeoJSON
   loadZones();
 
   // Кнопки
@@ -281,7 +280,7 @@ function setOperatorMarker(latlng) {
       <b>Позиция оператора</b><br>
       Координаты: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}<br>
       Высота: ${Math.round(elevation)} м.
-    `);
+    `).openPopup();
   });
 }
 
