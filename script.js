@@ -289,80 +289,47 @@ function setOperatorMarker(latlng) {
   });
 }
 
-// Функция для проверки пересечения круга с полигоном
-function circleIntersectsPolygon(circle, polygon) {
-  const circleCenter = circle.getLatLng();
-  const circleRadius = circle.getRadius();
-  
-  // Проверяем, находится ли центр круга внутри полигона
-  if (polygon.getBounds().contains(circleCenter)) {
-    return true;
+// ПРОСТАЯ И НАДЕЖНАЯ ФУНКЦИЯ ПРОВЕРКИ ПЕРЕСЕЧЕНИЙ
+function checkIntersections() {
+  if (!tempCircle || !flyZonesLayer) {
+    alert('Нет данных для расчёта.');
+    return [];
   }
-  
-  // Проверяем, пересекает ли круг границы полигона
-  const circleBounds = circle.getBounds();
-  const polygonBounds = polygon.getBounds();
-  
-  // Если bounding boxes не пересекаются, то и фигуры не пересекаются
-  if (!circleBounds.intersects(polygonBounds)) {
-    return false;
-  }
-  
-  // Более точная проверка: проверяем расстояние от центра круга до полигона
-  const polygonLatLngs = polygon.getLatLngs()[0]; // Берем первый ring полигона
-  
-  // Проверяем, находится ли любая точка полигона внутри круга
-  for (let i = 0; i < polygonLatLngs.length; i++) {
-    const distance = map.distance(circleCenter, polygonLatLngs[i]);
-    if (distance <= circleRadius) {
-      return true;
+
+  const circleCenter = tempCircle.getLatLng();
+  const circleRadius = tempCircle.getRadius();
+  const intersectingNames = [];
+
+  // Простая проверка: если центр круга находится внутри bounding box зоны
+  flyZonesLayer.eachLayer(layer => {
+    if (layer instanceof L.Polygon) {
+      try {
+        const zoneBounds = layer.getBounds();
+        const zoneCenter = zoneBounds.getCenter();
+        
+        // Проверяем расстояние от центра круга до центра зоны
+        const distance = map.distance(circleCenter, zoneCenter);
+        
+        // Упрощенная проверка: если расстояние меньше радиуса круга + примерный радиус зоны
+        // Берем приблизительный радиус зоны как половину диагонали bounding box
+        const zoneDiagonal = map.distance(zoneBounds.getNorthWest(), zoneBounds.getSouthEast());
+        const zoneRadius = zoneDiagonal / 2;
+        
+        if (distance <= (circleRadius + zoneRadius)) {
+          const name = layer.feature?.properties?.Name || 
+                       layer.feature?.properties?.name || 
+                       'Зона';
+          if (!intersectingNames.includes(name)) {
+            intersectingNames.push(name);
+          }
+        }
+      } catch (e) {
+        console.warn('Ошибка при проверке пересечения:', e);
+      }
     }
-  }
-  
-  // Проверяем, находится ли центр круга близко к границе полигона
-  // Это упрощенная проверка, но для наших целей подойдет
-  let minDistance = Infinity;
-  for (let i = 0; i < polygonLatLngs.length; i++) {
-    const nextIndex = (i + 1) % polygonLatLngs.length;
-    const distance = distanceToSegment(circleCenter, polygonLatLngs[i], polygonLatLngs[nextIndex]);
-    minDistance = Math.min(minDistance, distance);
-  }
-  
-  return minDistance <= circleRadius;
-}
+  });
 
-// Вспомогательная функция для расчета расстояния от точки до отрезка
-function distanceToSegment(point, segmentStart, segmentEnd) {
-  const A = point.lat - segmentStart.lat;
-  const B = point.lng - segmentStart.lng;
-  const C = segmentEnd.lat - segmentStart.lat;
-  const D = segmentEnd.lng - segmentStart.lng;
-
-  const dot = A * C + B * D;
-  const lenSq = C * C + D * D;
-  let param = -1;
-  
-  if (lenSq !== 0) {
-    param = dot / lenSq;
-  }
-
-  let xx, yy;
-
-  if (param < 0) {
-    xx = segmentStart.lat;
-    yy = segmentStart.lng;
-  } else if (param > 1) {
-    xx = segmentEnd.lat;
-    yy = segmentEnd.lng;
-  } else {
-    xx = segmentStart.lat + param * C;
-    yy = segmentStart.lng + param * D;
-  }
-
-  const dx = point.lat - xx;
-  const dy = point.lng - yy;
-  
-  return Math.sqrt(dx * dx + dy * dy) * 111320; // Примерное преобразование в метры
+  return intersectingNames;
 }
 
 function initButtons() {
@@ -429,28 +396,22 @@ function initButtons() {
 
   if (btnCalculate) {
     btnCalculate.addEventListener('click', () => {
-      if (!tempCircle || !flyZonesLayer) {
-        alert('Нет данных для расчёта.');
+      console.log('Нажата кнопка Рассчитать');
+      console.log('tempCircle:', tempCircle);
+      console.log('flyZonesLayer:', flyZonesLayer);
+      
+      if (!tempCircle) {
+        alert('Сначала создайте круг с помощью Р-БЛА');
+        return;
+      }
+      
+      if (!flyZonesLayer) {
+        alert('Зоны полёта не загружены');
         return;
       }
 
-      const intersectingNames = [];
-      
-      // Проверяем пересечение с каждой зоной
-      flyZonesLayer.eachLayer(layer => {
-        if (layer instanceof L.Polygon) {
-          try {
-            if (circleIntersectsPolygon(tempCircle, layer)) {
-              const name = layer.feature.properties.Name || layer.feature.properties.name || 'Зона';
-              if (!intersectingNames.includes(name)) {
-                intersectingNames.push(name);
-              }
-            }
-          } catch (e) {
-            console.warn('Ошибка при проверке пересечения:', e);
-          }
-        }
-      });
+      const intersectingNames = checkIntersections();
+      console.log('Найдены пересечения:', intersectingNames);
 
       getElevation(centerPoint.lat, centerPoint.lng).then(elevation => {
         let content = `
@@ -458,13 +419,20 @@ function initButtons() {
           <b>Высота:</b> ${Math.round(elevation)} м.<br>
           <b>Радиус:</b> ${radiusMeters} м<br>
         `;
+        
         if (intersectingNames.length > 0) {
           content += `<b>Пересекает зоны:</b><br>• ${intersectingNames.join('<br>• ')}`;
         } else {
           content += `<b>Пересечений нет</b>`;
         }
 
-        tempCircle.bindPopup(content).openPopup();
+        // Создаем popup если его нет
+        if (!tempCircle.getPopup()) {
+          tempCircle.bindPopup(content);
+        } else {
+          tempCircle.setPopupContent(content);
+        }
+        tempCircle.openPopup();
       });
 
       btnCalculate.style.display = 'none';
@@ -515,12 +483,14 @@ function finishRadius(e) {
   tempCircle = L.circle(centerPoint, {
     radius: radiusMeters,
     color: 'red',
-    fillOpacity: 0.2
+    fillOpacity: 0.2,
+    weight: 2
   }).addTo(map);
 
   const btnCalculate = document.getElementById('btn-calculate');
   if (btnCalculate) {
     btnCalculate.style.display = 'block';
+    console.log('Кнопка Рассчитать показана');
   }
   
   resetRBLA();
