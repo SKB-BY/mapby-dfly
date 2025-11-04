@@ -299,3 +299,57 @@ html, body, #map {
     font-size: 13px;
   }
 }
+
+/* === КНОПКА И МЕНЮ В ПРАВОМ НИЖНЕМ УГЛУ === */
+.zone-toggle-btn {
+  position: absolute !important;
+  bottom: 10px !important;
+  right: 10px !important;
+  z-index: 1001 !important;
+  width: 40px !important;
+  height: 40px !important;
+  background: white !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  font-size: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.zone-menu-container {
+  position: absolute !important;
+  bottom: 55px !important;
+  right: 10px !important;
+  width: 220px !important;
+  background: white !important;
+  border: 1px solid #ccc !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+  z-index: 1000 !important;
+  padding: 12px !important;
+  display: none !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+}
+
+.zone-menu-container.active {
+  display: block !important;
+}
+
+.zone-menu-container label {
+  display: flex !important;
+  align-items: center !important;
+  margin: 6px 0 !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 15px !important;
+  color: #222 !important;
+  white-space: nowrap !important;
+}
+
+.zone-menu-container input[type="checkbox"] {
+  margin-right: 10px !important;
+  transform: scale(1.2) !important;
+}
