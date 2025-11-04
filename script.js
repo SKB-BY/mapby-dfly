@@ -14,45 +14,31 @@ const ELEVATION_REQUEST_DELAY = 1000;
 let pendingElevationRequest = null;
 let isTrackingCenter = true;
 
-// === НОВЫЕ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ФИЛЬТРАЦИИ ===
+// Глобальные переменные для зон
 let zoneLayers = {};
 const ZONE_PREFIXES = ["RB", "MIL", "UMU", "UMP", "UMD", "UMR", "ARD", "ARZ"];
 
+// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений) ===
 function getZoneStyle(feature) {
   const name = feature.properties?.Name || feature.properties?.name || '';
-  const baseStyle = {
-    weight: 2,
-    opacity: 0.9,
-    fillOpacity: 0.3
-  };
-
-  if (name.startsWith('UMU_')) {
-    return { ...baseStyle, color: '#800080', fillColor: '#800080' };
-  } else if (name.startsWith('UMD_')) {
-    return { ...baseStyle, color: '#654321', fillColor: '#b57e54' };
-  } else if (name.startsWith('UMP_')) {
-    return { ...baseStyle, color: '#cc8400', fillColor: '#ffa500' };
-  } else if (name.startsWith('UMR_')) {
-    return { ...baseStyle, color: '#cc0000', fillColor: '#ff0000' };
-  } else if (name.startsWith('ARD_') || name.startsWith('ARZ_')) {
-    return { ...baseStyle, color: '#666666', fillColor: '#c8c8c8' };
-  } else {
-    return { ...baseStyle, color: '#cc0000', fillColor: '#ff0000' };
-  }
+  const baseStyle = { weight: 2, opacity: 0.9, fillOpacity: 0.3 };
+  if (name.startsWith('UMU_')) return { ...baseStyle, color: '#800080', fillColor: '#800080' };
+  else if (name.startsWith('UMD_')) return { ...baseStyle, color: '#654321', fillColor: '#b57e54' };
+  else if (name.startsWith('UMP_')) return { ...baseStyle, color: '#cc8400', fillColor: '#ffa500' };
+  else if (name.startsWith('UMR_')) return { ...baseStyle, color: '#cc0000', fillColor: '#ff0000' };
+  else if (name.startsWith('ARD_') || name.startsWith('ARZ_')) return { ...baseStyle, color: '#666666', fillColor: '#c8c8c8' };
+  else return { ...baseStyle, color: '#cc0000', fillColor: '#ff0000' };
 }
 
 async function getElevation(lat, lng) {
   const cacheKey = `${lat.toFixed(3)},${lng.toFixed(3)}`;
   if (elevationCache[cacheKey] !== undefined) return elevationCache[cacheKey];
-  
   const now = Date.now();
   if (now - lastElevationRequest < ELEVATION_REQUEST_DELAY) {
     if (pendingElevationRequest) return pendingElevationRequest;
     return getApproximateElevation(lat, lng);
   }
-  
   lastElevationRequest = now;
-  
   pendingElevationRequest = new Promise(async (resolve) => {
     try {
       const response = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
@@ -72,7 +58,6 @@ async function getElevation(lat, lng) {
       pendingElevationRequest = null;
     }
   });
-
   return pendingElevationRequest;
 }
 
@@ -120,9 +105,20 @@ function resetToCenterTracking() {
   updateCenterCoordinates();
 }
 
+// === УПРАВЛЕНИЕ МЕНЮ ===
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('active');
+  document.getElementById('overlay').classList.add('active');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('active');
+  document.getElementById('overlay').classList.remove('active');
+}
+
+// === ИНИЦИАЛИЗАЦИЯ КАРТЫ ===
 function initMap() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
   map = L.map('map', {
     zoomControl: true,
     attributionControl: false,
@@ -156,10 +152,10 @@ function initMap() {
   updateCenterCoordinates();
   loadZones();
   initButtons();
-  createZoneToggleControl(); // ← добавлено
+  initSidebar();
 }
 
-// === НОВАЯ ФУНКЦИЯ ЗАГРУЗКИ ЗОН ===
+// === ЗАГРУЗКА ЗОН ===
 function loadZones() {
   fetch('Fly_Zones_BY.geojson')
     .then(res => {
@@ -208,14 +204,12 @@ function loadZones() {
     });
 }
 
-// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ПРОВЕРКИ ПЕРЕСЕЧЕНИЙ ===
+// === ПРОВЕРКА ПЕРЕСЕЧЕНИЙ (использует ВСЕ зоны) ===
 function checkIntersections() {
   if (!tempCircle || !flyZonesGeoJSON) return [];
-
   const circleCenter = tempCircle.getLatLng();
   const circleRadius = tempCircle.getRadius();
   const intersectingNames = [];
-
   flyZonesGeoJSON.features.forEach(feature => {
     const tempLayer = L.geoJSON(feature);
     try {
@@ -224,7 +218,6 @@ function checkIntersections() {
       const zoneDiagonal = map.distance(bounds.getNorthWest(), bounds.getSouthEast());
       const zoneRadius = zoneDiagonal / 2;
       const distance = map.distance(circleCenter, zoneCenter);
-
       if (distance <= (circleRadius + zoneRadius)) {
         const name = feature.properties.Name || feature.properties.name || 'Зона';
         if (!intersectingNames.includes(name)) {
@@ -236,10 +229,10 @@ function checkIntersections() {
     }
     tempLayer.remove();
   });
-
   return intersectingNames;
 }
 
+// === КНОПКИ И ЛОГИКА Р-БЛА ===
 function setOperatorMarker(latlng) {
   if (operatorMarker) map.removeLayer(operatorMarker);
   operatorMarker = L.marker(latlng, {
@@ -260,79 +253,51 @@ function setOperatorMarker(latlng) {
 }
 
 function initButtons() {
-  const btnRbla = document.getElementById('btn-rbla');
-  const btnGps = document.getElementById('btn-gps');
-  const btnCalculate = document.getElementById('btn-calculate');
-  const btnOperator = document.getElementById('btn-operator');
-
-  if (btnGps) {
-    btnGps.addEventListener('click', () => {
-      map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true, timeout: 10000 });
-      map.once('locationfound', e => {
-        if (btnOperator) btnOperator.style.display = 'block';
-        L.marker(e.latlng).addTo(map).bindPopup("Ваше местоположение").openPopup();
-        setTimeout(() => { isTrackingCenter = true; updateCenterCoordinates(); }, 1000);
-      });
-      map.once('locationerror', () => {
-        alert('Не удалось определить местоположение.');
-      });
+  document.getElementById('btn-gps')?.addEventListener('click', () => {
+    map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true, timeout: 10000 });
+    map.once('locationfound', e => {
+      document.getElementById('btn-operator').style.display = 'block';
+      L.marker(e.latlng).addTo(map).bindPopup("Ваше местоположение").openPopup();
+      setTimeout(() => { isTrackingCenter = true; updateCenterCoordinates(); }, 1000);
     });
-  }
+    map.once('locationerror', () => alert('Не удалось определить местоположение.'));
+  });
 
-  if (btnOperator) {
-    btnOperator.addEventListener('click', () => {
-      const center = map.getCenter();
-      setOperatorMarker(center);
-      getElevation(center.lat, center.lng).then(elevation => {
-        alert(`Маркер оператора установлен!\nКоординаты: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}\nВысота: ${Math.round(elevation)} м.`);
-      });
+  document.getElementById('btn-operator')?.addEventListener('click', () => {
+    const center = map.getCenter();
+    setOperatorMarker(center);
+    getElevation(center.lat, center.lng).then(elevation => {
+      alert(`Маркер оператора установлен!\nКоординаты: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}\nВысота: ${Math.round(elevation)} м.`);
     });
-  }
+  });
 
-  if (btnRbla) {
-    btnRbla.addEventListener('click', () => {
-      if (rblaMode) return;
-      rblaMode = true;
-      btnRbla.disabled = true;
-      centerPoint = map.getCenter();
-      map.dragging.disable();
-      map.on('mousemove', drawTempLine);
-      map.once('click', finishRadius);
-    });
-  }
+  document.getElementById('btn-rbla')?.addEventListener('click', () => {
+    if (rblaMode) return;
+    rblaMode = true;
+    document.getElementById('btn-rbla').disabled = true;
+    centerPoint = map.getCenter();
+    map.dragging.disable();
+    map.on('mousemove', drawTempLine);
+    map.once('click', finishRadius);
+  });
 
-  if (btnCalculate) {
-    btnCalculate.addEventListener('click', () => {
-      if (!tempCircle) {
-        alert('Сначала создайте круг с помощью Р-БЛА');
-        return;
+  document.getElementById('btn-calculate')?.addEventListener('click', () => {
+    if (!tempCircle) return alert('Сначала создайте круг с помощью Р-БЛА');
+    if (!flyZonesGeoJSON) return alert('Зоны не загружены');
+    const intersectingNames = checkIntersections();
+    getElevation(centerPoint.lat, centerPoint.lng).then(elevation => {
+      let content = `<b>Центр:</b> ${centerPoint.lat.toFixed(6)}, ${centerPoint.lng.toFixed(6)}<br><b>Высота:</b> ${Math.round(elevation)} м.<br><b>Радиус:</b> ${radiusMeters} м<br>`;
+      if (intersectingNames.length > 0) {
+        content += `<b>Пересекает зоны:</b><br>• ${intersectingNames.join('<br>• ')}`;
+      } else {
+        content += `<b>Пересечений нет</b>`;
       }
-      if (!flyZonesGeoJSON) {
-        alert('Зоны не загружены');
-        return;
-      }
-
-      const intersectingNames = checkIntersections();
-      getElevation(centerPoint.lat, centerPoint.lng).then(elevation => {
-        let content = `
-          <b>Центр:</b> ${centerPoint.lat.toFixed(6)}, ${centerPoint.lng.toFixed(6)}<br>
-          <b>Высота:</b> ${Math.round(elevation)} м.<br>
-          <b>Радиус:</b> ${radiusMeters} м<br>
-        `;
-        if (intersectingNames.length > 0) {
-          content += `<b>Пересекает зоны:</b><br>• ${intersectingNames.join('<br>• ')}`;
-        } else {
-          content += `<b>Пересечений нет</b>`;
-        }
-
-        if (!tempCircle.getPopup()) tempCircle.bindPopup(content);
-        else tempCircle.setPopupContent(content);
-        tempCircle.openPopup();
-      });
-
-      btnCalculate.style.display = 'none';
+      if (!tempCircle.getPopup()) tempCircle.bindPopup(content);
+      else tempCircle.setPopupContent(content);
+      tempCircle.openPopup();
     });
-  }
+    document.getElementById('btn-calculate').style.display = 'none';
+  });
 }
 
 function drawTempLine(e) {
@@ -369,59 +334,20 @@ function finishRadius(e) {
 
 function resetRBLA() {
   rblaMode = false;
-  const btnRbla = document.getElementById('btn-rbla');
-  if (btnRbla) btnRbla.disabled = false;
+  const btn = document.getElementById('btn-rbla');
+  if (btn) btn.disabled = false;
   map.dragging.enable();
   map.off('mousemove', drawTempLine);
 }
 
-// === НОВАЯ ФУНКЦИЯ: КОНТРОЛ В ПРАВОМ НИЖНЕМ УГЛУ ===
-function createZoneToggleControl() {
-  const container = L.DomUtil.create('div', 'zone-toggle-control');
-  container.style.cssText = `
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    z-index: 1000;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  `;
-
-  const button = document.createElement('button');
-  button.textContent = '⋮';
-  button.style.cssText = `
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: white;
-    font-size: 18px;
-    cursor: pointer;
-  `;
-  container.appendChild(button);
-
-  const menu = document.createElement('div');
-  menu.style.cssText = `
-    display: none;
-    position: absolute;
-    bottom: 42px;
-    right: 0;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    z-index: 1001;
-    max-height: 200px;
-    overflow-y: auto;
-  `;
-  container.appendChild(menu);
+// === ИНИЦИАЛИЗАЦИЯ БОКОВОГО МЕНЮ ===
+function initSidebar() {
+  const list = document.getElementById('zone-list');
+  const toggle = document.getElementById('menu-toggle');
+  const closeBtn = document.getElementById('close-sidebar');
 
   ZONE_PREFIXES.forEach(prefix => {
     const label = document.createElement('label');
-    label.style.display = 'block';
-    label.style.margin = '4px 0';
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.value = prefix;
@@ -432,20 +358,15 @@ function createZoneToggleControl() {
     };
     label.appendChild(checkbox);
     label.appendChild(document.createTextNode(' ' + prefix));
-    menu.appendChild(label);
+    list.appendChild(label);
   });
 
-  button.onclick = () => {
-    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-  };
-
-  document.addEventListener('click', (e) => {
-    if (!container.contains(e.target)) menu.style.display = 'none';
-  });
-
-  document.body.appendChild(container);
+  toggle?.addEventListener('click', openSidebar);
+  closeBtn?.addEventListener('click', closeSidebar);
+  document.getElementById('overlay')?.addEventListener('click', closeSidebar);
 }
 
+// === ЗАПУСК ===
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
 });
