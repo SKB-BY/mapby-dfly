@@ -18,7 +18,6 @@ let isTrackingCenter = true;
 let zoneLayers = {};
 const ZONE_PREFIXES = ["RB", "MIL", "UMU", "UMP", "UMD", "UMR", "ARD", "ARZ"];
 
-// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений) ===
 function getZoneStyle(feature) {
   const name = feature.properties?.Name || feature.properties?.name || '';
   const baseStyle = { weight: 2, opacity: 0.9, fillOpacity: 0.3 };
@@ -105,18 +104,6 @@ function resetToCenterTracking() {
   updateCenterCoordinates();
 }
 
-// === УПРАВЛЕНИЕ МЕНЮ ===
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('active');
-  document.getElementById('overlay').classList.add('active');
-}
-
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('active');
-  document.getElementById('overlay').classList.remove('active');
-}
-
-// === ИНИЦИАЛИЗАЦИЯ КАРТЫ ===
 function initMap() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   map = L.map('map', {
@@ -152,10 +139,9 @@ function initMap() {
   updateCenterCoordinates();
   loadZones();
   initButtons();
-  initSidebar();
+  createZoneToggleControl(); // ✅ ЕДИНСТВЕННОЕ МЕНЮ — ВНИЗУ СПРАВА
 }
 
-// === ЗАГРУЗКА ЗОН ===
 function loadZones() {
   fetch('Fly_Zones_BY.geojson')
     .then(res => {
@@ -204,7 +190,6 @@ function loadZones() {
     });
 }
 
-// === ПРОВЕРКА ПЕРЕСЕЧЕНИЙ (использует ВСЕ зоны) ===
 function checkIntersections() {
   if (!tempCircle || !flyZonesGeoJSON) return [];
   const circleCenter = tempCircle.getLatLng();
@@ -232,7 +217,6 @@ function checkIntersections() {
   return intersectingNames;
 }
 
-// === КНОПКИ И ЛОГИКА Р-БЛА ===
 function setOperatorMarker(latlng) {
   if (operatorMarker) map.removeLayer(operatorMarker);
   operatorMarker = L.marker(latlng, {
@@ -340,15 +324,25 @@ function resetRBLA() {
   map.off('mousemove', drawTempLine);
 }
 
+// ✅ ЕДИНСТВЕННАЯ ФУНКЦИЯ МЕНЮ — ВНИЗУ СПРАВА
 function createZoneToggleControl() {
-  const btn = L.DomUtil.create('button', 'zone-toggle-btn');
+  const container = document.createElement('div');
+  container.style.cssText = `
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 1000;
+  `;
+
+  const btn = document.createElement('button');
+  btn.className = 'zone-toggle-btn';
   btn.innerHTML = '⋮';
   btn.title = 'Фильтр зон';
 
-  const menu = L.DomUtil.create('div', 'zone-menu-container');
+  const menu = document.createElement('div');
+  menu.className = 'zone-menu-container';
 
-  // Заполняем чекбоксами
-  zonePrefixes.forEach(prefix => {
+  ZONE_PREFIXES.forEach(prefix => { // ✅ ИСПРАВЛЕНО: ZONE_PREFIXES, а не zonePrefixes
     const label = document.createElement('label');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -359,35 +353,28 @@ function createZoneToggleControl() {
       else map.removeLayer(zoneLayers[prefix]);
     };
     label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(prefix));
+    label.appendChild(document.createTextNode(' ' + prefix));
     menu.appendChild(label);
   });
 
-  // Переключение видимости меню
   btn.onclick = (e) => {
     e.stopPropagation();
     menu.classList.toggle('active');
   };
 
-  // Закрытие при клике вне меню
   document.addEventListener('click', () => {
     menu.classList.remove('active');
   });
 
-  // Исключение кликов внутри меню
   menu.addEventListener('click', (e) => {
     e.stopPropagation();
   });
 
-  // Добавляем на карту как контрол
-  const container = L.DomUtil.create('div');
-  container.style.cssText = 'position: absolute; bottom: 10px; right: 10px; z-index: 1000;';
   container.appendChild(btn);
   container.appendChild(menu);
   document.body.appendChild(container);
 }
 
-// === ЗАПУСК ===
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
 });
