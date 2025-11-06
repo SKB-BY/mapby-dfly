@@ -183,7 +183,7 @@ html, body, #map {
 }
 
 .leaflet-control-attribution {
-  display: none !important;
+  display: none;
 }
 
 .distance-label div {
@@ -203,8 +203,8 @@ html, body, #map {
 }
 
 .coordinates-display {
-  position: fixed !important;
-  bottom: 10px;
+  position: fixed;
+  bottom: 5px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -220,10 +220,10 @@ html, body, #map {
   text-align: center;
   backdrop-filter: blur(4px);
   pointer-events: none;
-  width: auto !important;
-  height: auto !important;
-  margin: 0 !important;
-  float: none !important;
+  width: auto;
+  height: auto;
+  margin: 0;
+  float: none;
 }
 
 .coordinates-content {
@@ -263,7 +263,7 @@ html, body, #map {
 
 .leaflet-bottom .coordinates-display,
 .leaflet-control-container .coordinates-display {
-  display: none !important;
+  display: none;
 }
 
 .operator-marker {
@@ -302,54 +302,116 @@ html, body, #map {
 
 /* === КНОПКА И МЕНЮ В ПРАВОМ НИЖНЕМ УГЛУ === */
 .zone-toggle-btn {
-  position: absolute !important;
-  bottom: 10px !important;
-  right: 10px !important;
-  z-index: 1001 !important;
-  width: 40px !important;
-  height: 40px !important;
-  background: white !important;
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  font-size: 20px !important;
-  cursor: pointer !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1001;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .zone-menu-container {
-  position: absolute !important;
-  bottom: 55px !important;
-  right: 10px !important;
-  width: 220px !important;
-  background: white !important;
-  border: 1px solid #ccc !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
-  z-index: 1000 !important;
-  padding: 12px !important;
-  display: none !important;
-  max-height: 80vh !important;
-  overflow-y: auto !important;
+  position: absolute;
+  bottom: 55px;
+  right: 10px;
+  width: 220px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 1000;
+  padding: 12px;
+  display: none;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .zone-menu-container.active {
-  display: block !important;
+  display: block;
 }
 
 .zone-menu-container label {
-  display: flex !important;
-  align-items: center !important;
-  margin: 6px 0 !important;
-  font-family: Arial, sans-serif !important;
-  font-size: 15px !important;
-  color: #222 !important;
-  white-space: nowrap !important;
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  color: #222;
+  white-space: nowrap;
 }
 
 .zone-menu-container input[type="checkbox"] {
-  margin-right: 10px !important;
-  transform: scale(1.2) !important;
+  margin-right: 10px;
+  transform: scale(1.2);
+}
+
+/* === ДОПОЛНИТЕЛЬНЫЕ ЭЛЕМЕНТЫ УПРАВЛЕНИЯ === */
+#extra-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 65px;
+  z-index: 1000;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-btn {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  bottom: 45px;
+  right: 0;
+  background-color: white;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  border-radius: 6px;
+  z-index: 1;
+  padding: 8px 0;
+}
+
+.dropdown-content button {
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+}
+
+.dropdown-content button:hover {
+  background-color: #f0f0f0;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+/* Стили для режимов редактирования */
+.editing-point {
+  cursor: move;
+  -webkit-tap-highlight-color: transparent;
 }
